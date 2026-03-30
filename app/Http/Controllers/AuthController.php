@@ -6,14 +6,14 @@ use App\Models\User;
 use Illuminate\Auth\Events\Validated;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Redirect;
+use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 
 
 {
 
-// Registration
+   // Registration
     public function register(Request $request){
         $validated = $request -> validate ([
         'first_name'=>'required|string',
@@ -77,7 +77,36 @@ class AuthController extends Controller
 
         }
     }
-        
-   
 
+    //Login
+     public function login(Request $request){
+            $validated = $request->validate([
+                'email'=>'required|email',
+                'password'=>'required|string|min:6'
+            ]);
+
+            $user = User::where('email', $validated['email'])->first();
+
+            if(!$user || !Hash::check($validated ['password'], $user->password)){
+                throw ValidationException::withMessages ([
+                'email'=>'Invalid Credentials.']);
+            }
+                if( $user->status === 'pending'){
+                return response()->json([
+                        'message'=>'Your Account is pending approval by the Adminstrator.'],403);
+                    }
+                
+                //Generate token
+                $token = $user->createToken('auth-token')->plainTextToken;
+                return response()->json([
+                    'message'=> 'Login Successful!',
+                    'user' => $user,
+                    'token' => $token,
+                ], 200);
+     }
+    //logout
+        public function logout(Request $request){
+            $request->user()->currentAccessToken()->delete();
+            return response()->json('Logout Successful.');
+        }
 }
