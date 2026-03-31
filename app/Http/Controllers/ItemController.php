@@ -11,9 +11,16 @@ class ItemController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-         $items = Item::all();
+        $query = Item::where('status', 'listed');
+
+        //category filter
+        if($request->filled('category')){
+            $query->where('category',$request->category);
+        }
+
+        $items = $query->get();
         return response()->json($items);
     }
 
@@ -30,7 +37,7 @@ class ItemController extends Controller
      */
     public function store(Request $request)
     {
-        try{
+        
         //user has to input this
         $validated = $request->validate([
             'category'=>'required|in:eyewear,electronics,stationery,clothing_and_accessories,documents_and_cards,bags_and_luggage,keys,other',
@@ -54,13 +61,14 @@ class ItemController extends Controller
             $item ->status =  'listed';
             $item ->claimed_by =  null;
             $item ->verification_code =  null;
-        
+
+         try{
              $item->save();
 
             return response()->json([
             'message' => 'Item created successfully.',
             'item' => $item
-            ], 200);
+            ], 201);
         } catch (\Exception $e) {
        
         return response()->json([
