@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('lost_item_private_details', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('lost_items')->constrained('lost_items', 'id')->onDelete('cascade');
+            $table->foreignId('lost_item_id')->constrained('lost_items', 'id')->onDelete('cascade');
              $table->string('brand_model_or_logo')->nullable();
             $table->text('what_was_inside_or_attached')->nullable();
             $table->text('hidden_or_internal_details')->nullable();
