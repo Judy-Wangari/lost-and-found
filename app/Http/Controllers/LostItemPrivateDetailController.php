@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Item;
 use App\Models\LostItem;
 use App\Models\LostItemPrivateDetail;
+use App\Models\Notification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -28,7 +30,7 @@ class LostItemPrivateDetailController extends Controller
             }
 
             $lostItemPrivateDetail = new LostItemPrivateDetail();
-            $lostItemPrivateDetail->item_id = $validated['lost_item_id'];
+            $lostItemPrivateDetail->lost_item_id = $validated['lost_item_id'];
             $lostItemPrivateDetail->brand_model_or_logo = $validated['brand_model_or_logo'];
             $lostItemPrivateDetail->what_was_inside_or_attached = $validated['what_was_inside_or_attached'];
             $lostItemPrivateDetail->hidden_or_internal_details = $validated['hidden_or_internal_details'];
@@ -74,4 +76,5 @@ class LostItemPrivateDetailController extends Controller
             ], 404);
         }
       }
+      
 }

@@ -194,4 +194,50 @@ class LostItemController extends Controller
             ], 500);
         }
     }
+
+     public function matchFoundPost(Request $request, string $lostItemId)
+    {
+        $request->validate([
+            'item_id' => 'required|exists:items,id',
+        ]);
+
+        try {
+            $lostItem = LostItem::findOrFail($lostItemId);
+            $item = Item::findOrFail($request->item_id);
+
+            // Check that the logged in user is the finder who posted the found item
+            if($item->posted_by !== Auth::id()){
+                return response()->json([
+                    'message' => 'You can only link your own found posts.'
+                ], 403);
+            }
+
+            // Check categories match
+            if($item->category !== $lostItem->category){
+                return response()->json([
+                    'message' => 'Categories do not match.'
+                ], 400);
+            }
+
+            // Notify the lost poster
+            Notification::create([
+                'user_id' => $lostItem->posted_by,
+                'message_body' => 'A finder thinks they have your lost ' . $lostItem->category . '. Click here to view the found item and submit a claim.',
+                'type' => 'item_matched',
+                'reference_id' => $item->id,
+                'reference_type' => 'item',
+                'is_read' => false
+            ]);
+
+            return response()->json([
+                'message' => 'Match notification sent to the lost item poster.',
+            ], 200);
+
+        } catch(\Exception $e){
+            return response()->json([
+                'error' => 'Failed to send match notification.',
+                'message' => $e->getMessage()
+            ], 500);
+        }
+    }
 }

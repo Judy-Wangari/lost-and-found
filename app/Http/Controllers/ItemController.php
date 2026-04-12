@@ -3,6 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Item;
+use App\Models\LostItem;
+use App\Models\Notification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -65,6 +67,22 @@ class ItemController extends Controller
 
          try{
              $item->save();
+
+            
+            $lostMatches = LostItem::where('category', $item->category)
+                            ->where('status', 'searching')
+                            ->get();
+
+            foreach($lostMatches as $lostMatch){
+                Notification::create([
+                    'user_id' => $lostMatch->posted_by,
+                    'message_body' => 'A possible match for your lost ' . $item->category . ' has been found. Click here to view.',
+                    'type' => 'item_matched',
+                    'reference_id' => $item->id,
+                    'reference_type' => 'item',
+                    'is_read' => false
+                ]);
+            }
 
             return response()->json([
             'message' => 'Item created successfully.',

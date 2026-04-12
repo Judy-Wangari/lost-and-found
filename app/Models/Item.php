@@ -15,4 +15,9 @@ class Item extends Model
     'verification_code'
    ];
 
+
+   public function privateDetails()
+{
+    return $this->hasOne(ItemPrivateDetail::class);
+}
 }
