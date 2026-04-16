@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AdminDashboardController;
 use App\Http\Controllers\AdminMessageController;
 use App\Http\Controllers\AppealController;
 use App\Http\Controllers\AuthController;
@@ -76,5 +77,11 @@ Route::put('/profile', [UserController::class, 'updateProfile']);
 Route::get('/users', [UserController::class, 'index']);
 Route::get('/users/{id}', [UserController::class, 'show']);
 Route::delete('/users/{id}', [UserController::class, 'destroy']);
+
+// Admin dashboard
+Route::get('/admin/dashboard', [AdminDashboardController::class, 'index']);
+Route::get('/admin/unresponsive-items', [AdminDashboardController::class, 'unresponsiveItems']);
+Route::get('/admin/collected-items', [AdminDashboardController::class, 'collectedItems']);
+Route::get('/admin/recent-activity', [AdminDashboardController::class, 'recentActivity']);
 
 });

@@ -16,15 +16,24 @@ class ClaimController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
-    {
-        if (Auth::user()->role !== 'admin') {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
-
-        $claims = Claim::with(['claimedBy', 'item', 'lostItem'])->where('status', 'pending_review')->get();
-        return response()->json($claims);
+   public function index(Request $request)
+  { 
+    if (Auth::user()->role !== 'admin') {
+        return response()->json(['error' => 'Unauthorized'], 403);
     }
+
+    $query = Claim::with(['claimedBy', 'item', 'lostItem']);
+
+    // Filter by status if provided, default to pending_review
+    if($request->filled('status')){
+        $query->where('status', $request->status);
+    } else {
+        $query->where('status', 'pending_review');
+    }
+
+    $claims = $query->get();
+    return response()->json($claims);
+  }
 
     /**
      * Show the form for creating a new resource.

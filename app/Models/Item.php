@@ -20,4 +20,14 @@ class Item extends Model
 {
     return $this->hasOne(ItemPrivateDetail::class);
 }
+
+public function postedBy()
+{
+    return $this->belongsTo(User::class, 'posted_by');
+}
+
+public function claimedByUser()
+{
+    return $this->belongsTo(User::class, 'claimed_by');
+}
 }

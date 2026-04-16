@@ -15,17 +15,22 @@ class ItemController extends Controller
      * Display a listing of the resource.
      */
     public function index(Request $request)
-    {
-        $query = Item::where('status', 'listed');
+  {
+    $query = Item::query();
 
-        //category filter
-        if($request->filled('category')){
-            $query->where('category',$request->category);
-        }
-
-        $items = $query->get();
-        return response()->json($items);
+    if($request->filled('status')){
+        $query->where('status', $request->status);
+    } else {
+        $query->where('status', 'listed');
     }
+
+    if($request->filled('category')){
+        $query->where('category', $request->category);
+    }
+
+    $items = $query->get();
+    return response()->json($items);
+  }
 
     /**
      * Show the form for creating a new resource.

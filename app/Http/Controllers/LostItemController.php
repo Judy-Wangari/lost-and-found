@@ -16,17 +16,22 @@ class LostItemController extends Controller
      */
     
     public function index(Request $request)
-   {
-    
-        $query = LostItem::where('status', 'searching');
+    {
+    $query = LostItem::query();
 
-        if($request->filled('category')){
-            $query->where('category', $request->category);
-        }
-
-        $lostItems = $query->get();
-        return response()->json($lostItems);
+    if($request->filled('status')){
+        $query->where('status', $request->status);
+    } else {
+        $query->where('status', 'searching');
     }
+
+    if($request->filled('category')){
+        $query->where('category', $request->category);
+    }
+
+    $lostItems = $query->get();
+    return response()->json($lostItems);
+   }
 
     
     /**
