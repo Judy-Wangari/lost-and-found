@@ -17,23 +17,30 @@ class ClaimController extends Controller
      * Display a listing of the resource.
      */
    public function index(Request $request)
-  { 
-    if (Auth::user()->role !== 'admin') {
-        return response()->json(['error' => 'Unauthorized'], 403);
+{
+    $user = Auth::user();
+
+    // Admin sees all claims with status filter
+    if($user->role === 'admin'){
+        $query = Claim::with(['claimedBy', 'item', 'lostItem']);
+
+        if($request->filled('status')){
+            $query->where('status', $request->status);
+        } else {
+            $query->where('status', 'pending_review');
+        }
+
+        return response()->json($query->get());
     }
 
-    $query = Claim::with(['claimedBy', 'item', 'lostItem']);
+    // Student sees only their own claims
+    $claims = Claim::with(['item'])
+        ->where('claimed_by', $user->id)
+        ->latest()
+        ->get();
 
-    // Filter by status if provided, default to pending_review
-    if($request->filled('status')){
-        $query->where('status', $request->status);
-    } else {
-        $query->where('status', 'pending_review');
-    }
-
-    $claims = $query->get();
     return response()->json($claims);
-  }
+}
 
     /**
      * Show the form for creating a new resource.
@@ -79,6 +86,14 @@ class ClaimController extends Controller
             return response()->json(['error' => 'Claim limit exceeded. Try again tomorrow.'], 429);
         }
 
+        // Check if the claimer is the finder
+        $item = Item::findOrFail($request->item_id);
+        if($item->posted_by === Auth::id()){
+            return response()->json([
+                'error' => 'You cannot claim an item you posted.'
+            ], 400);
+        }
+
         // Check if already claimed this item
         $existingClaim = Claim::where('claimed_by', Auth::id())
             ->where('item_id', $request->item_id)
@@ -106,6 +121,7 @@ class ClaimController extends Controller
         return response()->json(['message' => 'Claim submitted. You will be notified within 24 hours.', 'claim' => $claim], 201);
 
         
+        
     }
 
     /**
@@ -117,8 +133,12 @@ class ClaimController extends Controller
             return response()->json(['error' => 'Unauthorized'], 403);
         }
 
-        $claim = Claim::with(['claimedBy', 'item', 'lostItem'])->findOrFail($id);
-
+       $claim = Claim::with([
+            'claimedBy',
+            'item.poster',
+            'item.itemPrivateDetail',
+            'lostItem.lostItemPrivateDetail'
+        ])->findOrFail($id);
         // Get finder's private details
         $finderDetails = $claim->item->itemPrivateDetail;
 

@@ -13,4 +13,10 @@ class LostItem extends Model
     'photo_path',
     'status',
    ];
+
+public function lostItemPrivateDetail()
+{
+    return $this->hasOne(LostItemPrivateDetail::class);
+}
+
 }

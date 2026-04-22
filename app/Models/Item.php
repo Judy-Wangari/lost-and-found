@@ -1,7 +1,8 @@
 <?php
 
 namespace App\Models;
-
+use App\Models\ItemPrivateDetail;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 
 class Item extends Model
@@ -29,5 +30,13 @@ public function postedBy()
 public function claimedByUser()
 {
     return $this->belongsTo(User::class, 'claimed_by');
+}
+public function itemPrivateDetail()
+{
+    return $this->hasOne(ItemPrivateDetail::class);
+}
+public function poster()
+{
+    return $this->belongsTo(User::class, 'posted_by');
 }
 }

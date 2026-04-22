@@ -10,41 +10,45 @@ use Illuminate\Support\Facades\Auth;
 class MessageController extends Controller
 {
     // Get all messages for a specific claim
-    public function index(string $claimId)
-    {
-        try {
-            $claim = Claim::findOrFail($claimId);
+   public function index(string $claimId)
+{
+    try {
+        $claim = Claim::findOrFail($claimId);
+        $userId = Auth::id();
+        $user = Auth::user();
 
-            // Only finder or owner can view messages
-            $userId = Auth::id();
-            $isOwner = $claim->claimed_by === $userId;
-            $isFinder = $claim->item->posted_by === $userId;
+        $isAdmin = $user->role === 'admin';
+        $isOwner = $claim->claimed_by === $userId;
+        $isFinder = $claim->item->posted_by === $userId;
 
-            if(!$isOwner && !$isFinder){
-                return response()->json([
-                    'message' => 'You are not authorized to view these messages.'
-                ], 403);
-            }
+        if(!$isAdmin && !$isOwner && !$isFinder){
+            return response()->json([
+                'message' => 'You are not authorized to view these messages.'
+            ], 403);
+        }
 
-            // Mark all messages as read for this user
+        // Only mark as read for non-admin
+        if(!$isAdmin){
             Message::where('claim_id', $claimId)
                 ->where('receiver_id', $userId)
                 ->where('is_read', false)
                 ->update(['is_read' => true]);
-
-            $messages = Message::where('claim_id', $claimId)
-            ->orderBy('created_at', 'asc')
-            ->paginate(20);
-
-            return response()->json($messages, 200);
-
-        } catch(\Exception $e){
-            return response()->json([
-                'error' => 'Failed to fetch messages.',
-                'message' => $e->getMessage()
-            ], 500);
         }
+
+        $messages = Message::where('claim_id', $claimId)
+            ->with(['sender', 'receiver'])
+            ->orderBy('created_at', 'asc')
+            ->get();
+
+        return response()->json($messages, 200);
+
+    } catch(\Exception $e){
+        return response()->json([
+            'error' => 'Failed to fetch messages.',
+            'message' => $e->getMessage()
+        ], 500);
     }
+}
 
     // Send a message
     public function store(Request $request)

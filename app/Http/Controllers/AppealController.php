@@ -15,15 +15,24 @@ class AppealController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
-    {
-        if (Auth::user()->role !== 'admin') {
-            return response()->json(['error' => 'Unauthorized'], 403);
-        }
+   public function index()
+{
+    $user = Auth::user();
 
+    // Admin sees all appeals
+    if($user->role === 'admin'){
         $appeals = Appeal::with(['claim', 'raisedBy', 'item'])->get();
         return response()->json($appeals);
     }
+
+    // Student sees only their own appeals
+    $appeals = Appeal::with(['item', 'claim'])
+        ->where('raised_by', $user->id)
+        ->latest()
+        ->get();
+
+    return response()->json($appeals);
+}
 
     /**
      * Show the form for creating a new resource.
