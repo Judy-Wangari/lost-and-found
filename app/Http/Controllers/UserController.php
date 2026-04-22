@@ -2,10 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
 use App\Models\Notification;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 
 class UserController extends Controller
@@ -324,4 +325,34 @@ class UserController extends Controller
             ], 500);
         }
     }
+    public function changePassword(Request $request)
+{
+    $request->validate([
+        'current_password' => 'required|string',
+        'new_password' => 'required|string|min:6|confirmed',
+    ]);
+
+    try {
+        $user = User::findOrFail(Auth::id());
+
+        if(!Hash::check($request->current_password, $user->password)){
+            return response()->json([
+                'message' => 'Current password is incorrect.'
+            ], 400);
+        }
+
+        $user->password = Hash::make($request->new_password);
+        $user->save();
+
+        return response()->json([
+            'message' => 'Password changed successfully.'
+        ], 200);
+
+    } catch(\Exception $e){
+        return response()->json([
+            'error' => 'Failed to change password.',
+            'message' => $e->getMessage()
+        ], 500);
+    }
+}
 }

@@ -56,6 +56,9 @@ class AuthController extends Controller
             $token = $user->createToken('auth-token')->plainTextToken;
             if( $status === 'active'){
             //Active accounts(students) go to login page with success message
+            $user->profile_picture = $user->profile_picture 
+            ? asset('storage/' . $user->profile_picture) 
+            : null;
             return response()->json([
                 'message'=>'Registration successful. Please Log in.',
                 'user' => $user,
@@ -98,6 +101,11 @@ class AuthController extends Controller
                 
                 //Generate token
                 $token = $user->createToken('auth-token')->plainTextToken;
+
+                $user->profile_picture = $user->profile_picture 
+                ? asset('storage/' . $user->profile_picture) 
+                : null;
+
                 return response()->json([
                     'message'=> 'Login Successful!',
                     'user' => $user,

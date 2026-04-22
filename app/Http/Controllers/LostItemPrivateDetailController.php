@@ -12,45 +12,42 @@ use Illuminate\Support\Facades\Auth;
 class LostItemPrivateDetailController extends Controller
 {
     // storing the private details 
-    public function store(Request $request){
-        $validated = $request -> validate ([
-        'lost_item_id'=>'required|exists:lost_items,id',
-        'brand_model_or_logo'=>'nullable|string',
-        'what_was_inside_or_attached'=>'nullable|string',
-        'hidden_or_internal_details'=>'nullable|string',
-        'extra_notes'=>'nullable|string',
-        
-          ]);
+    public function store(Request $request, string $id){
+    $validated = $request->validate([
+        'brand_model_or_logo' => 'nullable|string',
+        'what_was_inside_or_attached' => 'nullable|string',
+        'hidden_or_internal_details' => 'nullable|string',
+        'extra_notes' => 'nullable|string',
+    ]);
 
-          $lostItem = LostItem::findOrFail($validated['lost_item_id']);
-            if($lostItem->posted_by !== Auth::id()){
-            return response()->json([
+    $lostItem = LostItem::findOrFail($id);
+
+    if($lostItem->posted_by !== Auth::id()){
+        return response()->json([
             'message' => 'You are not authorized to add private details for this item.'
-            ], 403);
-            }
-
-            $lostItemPrivateDetail = new LostItemPrivateDetail();
-            $lostItemPrivateDetail->lost_item_id = $validated['lost_item_id'];
-            $lostItemPrivateDetail->brand_model_or_logo = $validated['brand_model_or_logo'];
-            $lostItemPrivateDetail->what_was_inside_or_attached = $validated['what_was_inside_or_attached'];
-            $lostItemPrivateDetail->hidden_or_internal_details = $validated['hidden_or_internal_details'];
-            $lostItemPrivateDetail->extra_notes = $validated['extra_notes'];
-            
-
-            try{
-                $lostItemPrivateDetail->save();
-                return response()->json([
-                'message' => 'Private details saved successfully.',
-                'details' => $lostItemPrivateDetail
-            ], 201);
-            }
-            catch(\Exception $exception){
-                return response()->json([
-                    'error' => 'Failed to save private details.',
-                    'message'=>$exception->getMessage()
-                ],500);
-            }
+        ], 403);
     }
+
+    $lostItemPrivateDetail = new LostItemPrivateDetail();
+    $lostItemPrivateDetail->lost_item_id = $id;
+    $lostItemPrivateDetail->brand_model_or_logo = $validated['brand_model_or_logo'] ?? null;
+    $lostItemPrivateDetail->what_was_inside_or_attached = $validated['what_was_inside_or_attached'] ?? null;
+    $lostItemPrivateDetail->hidden_or_internal_details = $validated['hidden_or_internal_details'] ?? null;
+    $lostItemPrivateDetail->extra_notes = $validated['extra_notes'] ?? null;
+
+    try{
+        $lostItemPrivateDetail->save();
+        return response()->json([
+            'message' => 'Private details saved successfully.',
+            'details' => $lostItemPrivateDetail
+        ], 201);
+    } catch(\Exception $exception){
+        return response()->json([
+            'error' => 'Failed to save private details.',
+            'message' => $exception->getMessage()
+        ], 500);
+    }
+}
 
 
         // Show private details --- admin only

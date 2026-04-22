@@ -185,27 +185,37 @@ class ItemController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(string $id)
-    {
-          try{
-                $item = Item::findOrFail($id);
-                //check if the one who posted it is the one deleting the item
-                if($item->posted_by !== Auth::id()){
-                return response()->json([
-                'message' => 'You are not authorized to delete this item.'
-                ], 403);
-                }
-                $item->delete();
+   public function destroy(string $id)
+{
+    try{
+        $item = Item::findOrFail($id);
 
-                return response()->json([
-                'message' => 'Item deleted successfully.'
-                ], 200);
-           }
-            catch(\Exception $exception){
-                return response()->json([
-                'error'=>'Failed to delete the Item',
-                'message'=>$exception->getMessage()
-                ],404);
-            }
+        if($item->posted_by !== Auth::id()){
+            return response()->json([
+                'message' => 'You are not authorized to delete this item.'
+            ], 403);
+        }
+
+        // Prevent deletion if item is under process
+        if($item->status !== 'listed'){
+            return response()->json([
+                'message' => 'You cannot delete this item because it is currently under review, claimed or being processed.'
+            ], 400);
+        }
+
+        $item->delete();
+        return response()->json(['message' => 'Item deleted successfully.'], 200);
+
+    } catch(\Exception $exception){
+        return response()->json([
+            'error' => 'Failed to delete the Item',
+            'message' => $exception->getMessage()
+        ], 404);
     }
+}
+    public function myItems()
+{
+    $items = Item::where('posted_by', Auth::id())->latest()->get();
+    return response()->json($items);
+}
 }

@@ -245,4 +245,10 @@ class LostItemController extends Controller
             ], 500);
         }
     }
+
+    public function myLostItems()
+{
+    $items = LostItem::where('posted_by', Auth::id())->latest()->get();
+    return response()->json($items);
+}
 }

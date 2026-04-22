@@ -71,7 +71,8 @@ Route::put('/users/{id}/approve-account', [UserController::class, 'approveAccoun
 
 //user profile
 Route::get('/profile', [UserController::class, 'getProfile']);
-Route::put('/profile', [UserController::class, 'updateProfile']);
+Route::post('/profile/update', [UserController::class, 'updateProfile']);
+Route::post('/profile/change-password', [UserController::class, 'changePassword']);
 
 //user management (admin only)
 Route::get('/users', [UserController::class, 'index']);
@@ -84,4 +85,7 @@ Route::get('/admin/unresponsive-items', [AdminDashboardController::class, 'unres
 Route::get('/admin/collected-items', [AdminDashboardController::class, 'collectedItems']);
 Route::get('/admin/recent-activity', [AdminDashboardController::class, 'recentActivity']);
 
+
+Route::get('/my-items', [ItemController::class, 'myItems']);
+Route::get('/my-lost-items', [LostItemController::class, 'myLostItems']);
 });
