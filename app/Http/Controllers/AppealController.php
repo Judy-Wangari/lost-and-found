@@ -2,170 +2,174 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use App\Models\Appeal;
 use App\Models\Claim;
 use App\Models\Item;
+use App\Models\Notification;
 use App\Models\User;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Mail;
 
 class AppealController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
-   public function index()
-{
-    $user = Auth::user();
+    public function index(Request $request)
+    {
+        $user = Auth::user();
 
-    // Admin sees all appeals
-    if($user->role === 'admin'){
-        $appeals = Appeal::with(['claim', 'raisedBy', 'item'])->get();
+        if($user->role === 'admin'){
+            $query = Appeal::with(['raisedBy', 'item', 'claim']);
+            if($request->filled('status')){
+                $query->where('status', $request->status);
+            } else {
+                $query->where('status', 'pending');
+            }
+            return response()->json($query->latest()->get());
+        }
+
+        // Student sees own appeals
+        $appeals = Appeal::with(['item', 'claim'])
+            ->where('raised_by', $user->id)
+            ->latest()
+            ->get();
+
         return response()->json($appeals);
     }
 
-    // Student sees only their own appeals
-    $appeals = Appeal::with(['item', 'claim'])
-        ->where('raised_by', $user->id)
-        ->latest()
-        ->get();
-
-    return response()->json($appeals);
-}
-
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create(Request $request)
+    public function show(string $id)
     {
-        //
+        $user = Auth::user();
+        $appeal = Appeal::with([
+            'raisedBy',
+            'item.itemPrivateDetail',
+            'claim'
+        ])->findOrFail($id);
+
+        // Only admin or the person who raised it can view
+        if($user->role !== 'admin' && $appeal->raised_by !== $user->id){
+            return response()->json(['message' => 'Unauthorized.'], 403);
+        }
+
+        return response()->json($appeal);
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
     public function store(Request $request)
     {
         $request->validate([
             'claim_id' => 'required|exists:claims,id',
-            'reason' => 'required|string|max:1000',
+            'reason'   => 'required|string|max:2000',
         ]);
 
-        $claim = Claim::findOrFail($request->claim_id);
+        $user = Auth::user();
+        $claim = Claim::with('item')->findOrFail($request->claim_id);
 
-        if ($claim->claimed_by !== Auth::id() || $claim->status !== 'rejected') {
-            return response()->json(['error' => 'Unauthorized'], 403);
+        // Only the owner of the rejected claim can appeal
+        if($claim->claimed_by !== $user->id){
+            return response()->json(['message' => 'Only the claimant can appeal this decision.'], 403);
         }
 
-        $existingAppeal = Appeal::where('claim_id', $request->claim_id)->first();
-        if ($existingAppeal) {
-            return response()->json(['error' => 'Appeal already submitted.'], 400);
+        if($claim->status !== 'rejected'){
+            return response()->json(['message' => 'You can only appeal a rejected claim.'], 400);
+        }
+
+        // Check if appeal already exists for this claim
+        $existing = Appeal::where('claim_id', $request->claim_id)
+            ->where('raised_by', $user->id)
+            ->first();
+        if($existing){
+            return response()->json(['message' => 'You have already submitted an appeal for this claim.'], 400);
         }
 
         $appeal = Appeal::create([
-            'claim_id' => $request->claim_id,
-            'raised_by' => Auth::id(),
-            'item_id' => $claim->item_id,
-            'reason' => $request->reason,
-            'status' => 'pending',
+            'claim_id'  => $request->claim_id,
+            'item_id'   => $claim->item_id,
+            'raised_by' => $user->id,
+            'reason'    => $request->reason,
+            'status'    => 'pending',
         ]);
 
-        // Notify admin via email
-        // Mail::to('admin@example.com')->send(new AppealSubmitted($appeal));
-
-        return response()->json(['message' => 'Appeal submitted successfully.', 'appeal' => $appeal], 201);
-    }
-
-    /**
-     * Display the specified resource.
-     */
-    public function show(string $id)
-    {
-        if (Auth::user()->role !== 'admin') {
-            return response()->json(['error' => 'Unauthorized'], 403);
+        // Notify admin
+        $admin = User::where('role', 'admin')->first();
+        if($admin){
+            Notification::create([
+                'user_id'        => $admin->id,
+                'message_body'   => $user->first_name . ' ' . $user->last_name . ' has submitted an appeal for a rejected claim on ' . $claim->item->category . '. Please review.',
+                'type'           => 'appeal_submitted',
+                'reference_id'   => $appeal->id,
+                'reference_type' => 'appeal',
+                'is_read'        => false
+            ]);
         }
-
-        $appeal = Appeal::with(['claim', 'raisedBy', 'item'])->findOrFail($id);
-
-        // Set to under review if pending
-        if ($appeal->status === 'pending') {
-            $appeal->update(['status' => 'under_review']);
-        }
-
-        // Get finder's private details
-        $finderDetails = $appeal->item->itemPrivateDetail;
-
-        // Get owner's claim details (which are in claim)
-        $ownerClaim = $appeal->claim;
-
-        // If there's a lost item, get owner's lost private details
-        $ownerLostDetails = $appeal->claim->lost_item ? $appeal->claim->lost_item->lostItemPrivateDetail : null;
 
         return response()->json([
-            'appeal' => $appeal,
-            'finder_details' => $finderDetails,
-            'owner_claim' => $ownerClaim,
-            'owner_lost_details' => $ownerLostDetails,
-        ]);
+            'message' => 'Appeal submitted successfully. Admin will review your appeal.',
+            'appeal'  => $appeal
+        ], 201);
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(string $id)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
     public function update(Request $request, string $id)
     {
-        if (Auth::user()->role !== 'admin') {
-            return response()->json(['error' => 'Unauthorized'], 403);
+        if(Auth::user()->role !== 'admin'){
+            return response()->json(['message' => 'Unauthorized.'], 403);
         }
 
         $request->validate([
-            'action' => 'required|in:approve,reject',
+            'action'     => 'required|in:under_review,resolve,reject',
+            'admin_note' => 'nullable|string|max:1000',
         ]);
 
-        $appeal = Appeal::findOrFail($id);
-        $claim = $appeal->claim;
+        $appeal = Appeal::with(['claim', 'item'])->findOrFail($id);
 
-                if($request->action === 'approve'){
-                $claim->status = 'approved';
-                $claim->save();
-
-                $verificationCode = rand(100000, 999999);
-                $claim->item->update([
-                    'status' => 'awaiting_collection',
-                    'claimed_by' => $claim->claimed_by,
-                    'verification_code' => $verificationCode
-                ]);
-
-                $appeal->status = 'resolved';
-                $appeal->save();
-            
-
-            // Generate 6-digit code, send to owner
-            // Notify finder and owner that messaging is open
-
-                }elseif($request->action === 'reject'){
-            $appeal->status = 'resolved';
+        if($request->action === 'under_review'){
+            $appeal->status = 'under_review';
+            $appeal->admin_note = $request->admin_note;
             $appeal->save();
-            $claim->item->update(['status' => 'listed']);
+
+            // Notify appellant
+            Notification::create([
+                'user_id'        => $appeal->raised_by,
+                'message_body'   => 'Admin is reviewing your appeal for the ' . $appeal->item->category . '. You will be notified of the final decision.',
+                'type'           => 'appeal_under_review',
+                'reference_id'   => $appeal->id,
+                'reference_type' => 'appeal',
+                'is_read'        => false
+            ]);
+
+        } elseif($request->action === 'resolve'){
+            $appeal->status = 'resolved';
+            $appeal->admin_note = $request->admin_note;
+            $appeal->save();
+
+            // Notify appellant --- appeal resolved, they can re-claim
+            Notification::create([
+                'user_id'        => $appeal->raised_by,
+                'message_body'   => 'Your appeal for the ' . $appeal->item->category . ' has been resolved in your favour. You may now submit a new claim for this item.',
+                'type'           => 'appeal_resolved',
+                'reference_id'   => $appeal->id,
+                'reference_type' => 'appeal',
+                'is_read'        => false
+            ]);
+
+            // Reset the claim so owner can re-claim
+            if($appeal->claim){
+                $appeal->claim->update(['status' => 'appeal_resolved']);
+            }
+
+        } elseif($request->action === 'reject'){
+            $appeal->status = 'rejected';
+            $appeal->admin_note = $request->admin_note;
+            $appeal->save();
+
+            // Notify appellant
+            Notification::create([
+                'user_id'        => $appeal->raised_by,
+                'message_body'   => 'Your appeal for the ' . $appeal->item->category . ' has been reviewed and rejected by the admin' . ($request->admin_note ? ': ' . $request->admin_note : '.'),
+                'type'           => 'appeal_rejected',
+                'reference_id'   => $appeal->id,
+                'reference_type' => 'appeal',
+                'is_read'        => false
+            ]);
         }
 
-        return response()->json(['message' => 'Appeal ' . $request->action . 'd successfully.']);
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
-    public function destroy(string $id)
-    {
-        //
+        return response()->json(['message' => 'Appeal updated successfully.']);
     }
 }

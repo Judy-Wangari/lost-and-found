@@ -16,7 +16,7 @@ return new class extends Migration
             $table->foreignId('claim_id')->constrained('claims', 'id')->onDelete('cascade');
             $table->foreignId('raised_by')->constrained('users', 'id')->onDelete('cascade');
             $table->foreignId('item_id')->constrained('items', 'id')->onDelete('cascade');
-            $table->enum('status',['pending','under_review','resolved'])->default('pending');
+            $table->enum('status',['pending','under_review','resolved','rejected'])->default('pending');
             $table->timestamps();
         });
     }

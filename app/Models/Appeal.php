@@ -6,12 +6,13 @@ use Illuminate\Database\Eloquent\Model;
 
 class Appeal extends Model
 {
-    protected $fillable =[
-    'claim_id',
-    'raised_by',
-    'item_id',
-    'status',
-    'reason',
+    protected $fillable = [
+        'claim_id',
+        'item_id',
+        'raised_by',
+        'reason',
+        'status',
+        'admin_note',
     ];
 
     public function claim()
@@ -19,13 +20,13 @@ class Appeal extends Model
         return $this->belongsTo(Claim::class);
     }
 
-    public function raisedBy()
-    {
-        return $this->belongsTo(User::class, 'raised_by');
-    }
-
     public function item()
     {
         return $this->belongsTo(Item::class);
+    }
+
+    public function raisedBy()
+    {
+        return $this->belongsTo(User::class, 'raised_by');
     }
 }

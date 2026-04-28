@@ -102,9 +102,9 @@ class ClaimController extends Controller
             return response()->json(['error' => 'You have already claimed this item.'], 400);
         }
 
-        $claim = Claim::create([
+                $claim = Claim::create([
             'claimed_by' => Auth::id(),
-            'item_id' => $request->item_id,
+            'item_id'    => $request->item_id,
             'lost_item_id' => $request->lost_item_id,
             'brand_model_or_logo' => $request->brand_model_or_logo,
             'what_was_inside_or_attached' => $request->what_was_inside_or_attached,
@@ -114,15 +114,24 @@ class ClaimController extends Controller
         ]);
 
         // Update item status to under_review
-        $item = Item::findOrFail($request->item_id);
         $item->status = 'under_review';
         $item->save();
 
-        return response()->json(['message' => 'Claim submitted. You will be notified within 24 hours.', 'claim' => $claim], 201);
+        // Notify admin of new claim
+        $admin = User::where('role', 'admin')->first();
+        if($admin){
+            Notification::create([
+                'user_id'        => $admin->id,
+                'message_body'   => Auth::user()->first_name . ' ' . Auth::user()->last_name . ' has submitted a claim for the ' . $item->category . '. Please review.',
+                'type'           => 'claim_submitted',
+                'reference_id'   => $claim->id,
+                'reference_type' => 'claim',
+                'is_read'        => false
+            ]);
+        }
 
-        
-        
-    }
+        return response()->json(['message' => 'Claim submitted. You will be notified within 24 hours.', 'claim' => $claim], 201);
+            }
 
     /**
      * Display the specified resource.
@@ -193,14 +202,44 @@ class ClaimController extends Controller
                 'verification_code' => $verificationCode
 ]);
 
+
+                                Notification::create([
+                        'user_id' => $claim->claimed_by,
+                        'message_body' => 'Your claim has been approved! Your verification code is: ' . $verificationCode . '. Use this code when collecting your item.',
+                        'type' => 'claim_approved',
+                        'reference_id' => $claim->id,
+                        'reference_type' => 'claim',
+                        'is_read' => false
+                    ]);
+
+                    // Notify finder
+                    Notification::create([
+                        'user_id' => $claim->item->posted_by,
+                        'message_body' => 'A claim on your found ' . $claim->item->category . ' has been approved. You can now message the owner to arrange collection.',
+                        'type' => 'claim_approved',
+                        'reference_id' => $claim->id,
+                        'reference_type' => 'claim',
+                        'is_read' => false
+                    ]);
+
             // TODO: Send code to owner, enable messaging
 
-                } elseif ($request->action === 'reject') {
-            $claim->status = 'rejected';
-            $claim->save();
+                        } elseif ($request->action === 'reject') {
+                $claim->status = 'rejected';
+                $claim->save();
 
-            // Item goes back to listed
-            $claim->item->update(['status' => 'listed']);
+                // Item goes back to listed
+                $claim->item->update(['status' => 'listed']);
+
+                // Notify owner with clear message and ability to appeal
+                Notification::create([
+                    'user_id' => $claim->claimed_by,
+                    'message_body' => 'Your claim for the ' . $claim->item->category . ' has been rejected by the admin. You may submit a new claim or appeal this decision if you believe it was unfair.',
+                    'type' => 'claim_rejected',
+                    'reference_id' => $claim->id,
+                    'reference_type' => 'claim',
+                    'is_read' => false
+                ]);
 
 
                 // Item goes back to public
